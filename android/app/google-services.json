@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "742510803148",
+    "project_id": "xupstore-aa3f8",
+    "storage_bucket": "xupstore-aa3f8.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:742510803148:android:2392492ae31f151200ea69",
+        "android_client_info": {
+          "package_name": "com.example.xupstore"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgnPEsB8ar80mxxnUQthqgIXRBYDTmyac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
