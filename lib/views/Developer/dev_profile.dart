@@ -1,7 +1,10 @@
+import 'dart:js_interop';
+import 'package:avatar_glow/avatar_glow.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:xupstore/consts/themes.dart';
 import 'package:xupstore/views/Developer/payment_method.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
 
 import '../../consts/forward_buttons.dart';
@@ -12,6 +15,7 @@ class DevProfile extends StatefulWidget {
 }
 
 class _DevProfileState extends State<DevProfile> {
+  final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
   File? _logoImage; // For the logo (avatar)
   File? _cnicImage; // For the CNIC upload
@@ -41,83 +45,100 @@ class _DevProfileState extends State<DevProfile> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(height: 50), // Top padding
-            Text(
-              'Developer Profile', // Page title
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold,),
-            ),
-            SizedBox(height: 20),
-            // Avatar (Logo)
-            GestureDetector(
-              onTap: _pickLogoImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _logoImage != null
-                    ? FileImage(_logoImage!)
-                    : AssetImage('assets/avatar_placeholder.png') as ImageProvider,
-              ),
-            ),
-            SizedBox(height: 20),
-            // Information Containers
-            _buildLabeledTextBox('Name', 'Enter your full name'),
-            _buildLabeledTextBox('Store Name', 'Enter your store name'),
-            _buildLabeledTextBox('Email', 'Enter your email'),
-            _buildLabeledTextBox('NIC', 'Enter your NIC'),
-            _buildLabeledTextBox('Contact', 'Enter your contact number'),
-            SizedBox(height: 20),
-            // CNIC Upload Box
-            GestureDetector(
-              onTap: _pickCnicImage,
-              child: Container(
-                alignment: Alignment.center,
-                width: 250,
-                height: 150,
-                margin: EdgeInsets.symmetric(horizontal: 20),
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              SizedBox(height: 50),
+              Text(
+                'Developer Profile',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
-                child: Column(
-                  children: [
-                    _cnicImage != null
-                        ? Image.file(_cnicImage!) // Display CNIC image if selected
-                        : Column(
-                      children: [
-                        Icon(Icons.image, size: 50, color: Colors.white),
-                        SizedBox(height: 10),
-                        Text(
-                          'Upload NIC Image',
-                          style: TextStyle(color: Colors.white,),
-                        ),
-                      ],
+              ),
+              SizedBox(height: 20),
+              // Avatar (Logo)
+              GestureDetector(
+                onTap: _pickLogoImage,
+                child: AvatarGlow(
+                  child: Material(
+                    elevation: 8.0,
+                    shape: CircleBorder(),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.grey[100],
+                      child: Center(
+                        child: Icon(Icons.add),
+                      ),
+                      radius: 50.0,
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 20),
-            // Next Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: CustomButton(
-              text: 'Next',
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PaymentDetailsPage(),
-                    ));// Implement next button action here
-              },
-                              ),
+              SizedBox(height: 20),
+              // Information Containers
+              _buildLabeledTextBox('Name', 'Enter your full name'),
+              _buildLabeledTextBox('Store Name', 'Enter your store name'),
+              _buildLabeledTextBox('Email', 'Enter your email'),
+              _buildLabeledTextBox('NIC', 'Enter your NIC'),
+              _buildLabeledTextBox('Contact', 'Enter your contact number'),
+              SizedBox(height: 20),
+              // CNIC Upload Box
+              GestureDetector(
+                onTap: _pickCnicImage,
+                child: Container(
+                  alignment: Alignment.center,
+                  width: 250,
+                  height: 150,
+                  margin: EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  child: Column(
+                    children: [
+                      _cnicImage != null
+                          ? Image.file(_cnicImage!)
+                          : Column(
+                              children: [
+                                Icon(Icons.image,
+                                    size: 50, color: Colors.white),
+                                SizedBox(height: 10),
+                                Text(
+                                  'Upload NIC Image',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ],
+                  ),
+                ),
               ),
-
-            SizedBox(height: 30), // Bottom padding
-          ],
+              SizedBox(height: 20),
+              // Next Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: CustomButton(
+                  text: 'Next',
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentDetailsPage(),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+              SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );
@@ -132,13 +153,15 @@ class _DevProfileState extends State<DevProfile> {
         children: [
           Text(
             label,
-            style: TextStyle(fontWeight: FontWeight.bold,fontSize: 15),
+            style:
+                GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           SizedBox(height: 8),
-          TextField(
+          TextFormField(
             decoration: InputDecoration(
               hintText: placeholder,
-              hintStyle: TextStyle(color: Colors.grey[500],fontSize: 12),
+              hintStyle:
+                  GoogleFonts.poppins(color: Colors.grey[500], fontSize: 12),
               filled: true,
               fillColor: textboxcolor,
               border: OutlineInputBorder(
@@ -149,8 +172,15 @@ class _DevProfileState extends State<DevProfile> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.white),
               ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your $label';
+              }
+              return null;
+            },
           ),
         ],
       ),

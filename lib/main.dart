@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:xupstore/firebase_options.dart';
+import 'package:xupstore/views/Developer/dev_profile.dart';
+import 'package:xupstore/views/Developer/payment_method.dart';
 import 'package:xupstore/views/dashboard.dart';
 import 'package:xupstore/views/downloadpage.dart';
 import 'package:xupstore/views/homepage.dart';
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Login(),
+      home: PaymentDetailsPage(),
     );
   }
 }
