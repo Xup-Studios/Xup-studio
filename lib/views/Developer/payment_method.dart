@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Import the Google Fonts package
 import 'package:xupstore/consts/forward_buttons.dart';
+import 'package:xupstore/views/Developer/dev_payment.dart';
 import '../../consts/themes.dart';
 
 class PaymentDetailsPage extends StatefulWidget {
@@ -241,7 +242,7 @@ class _PaymentDetailsPageState extends State<PaymentDetailsPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => PaymentDetailsPage(),
+                              builder: (context) => PaymentAccessScreen(),
                             ),
                           );
                         }

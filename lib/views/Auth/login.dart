@@ -4,19 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:rounded_loading_button_plus/rounded_loading_button.dart';
 import 'package:xupstore/auth/auth_service.dart';
-import 'package:xupstore/views/login.dart';
+import 'package:xupstore/views/dashboard.dart';
 
-import '../widgets/text_fields.dart';
+import 'package:xupstore/views/Auth/register.dart';
 
-class Register extends StatelessWidget {
+import 'package:xupstore/widgets/text_fields.dart';
+
+class Login extends StatelessWidget {
   TextEditingController _emailcontroller = TextEditingController();
   TextEditingController _pwcontroller = TextEditingController();
-  TextEditingController _cpwcontroller = TextEditingController();
 
   final RoundedLoadingButtonController LoginbtnController =
       RoundedLoadingButtonController();
 
-  Register({super.key});
+  Login({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +38,7 @@ class Register extends StatelessWidget {
                 height: 20,
               ),
               Text(
-                "Lets create an account for you",
+                "Welcome to Xup Store!",
                 style: GoogleFonts.poppins(fontSize: 16),
               ),
               SizedBox(
@@ -66,53 +67,45 @@ class Register extends StatelessWidget {
               SizedBox(
                 height: 10,
               ),
-              MyTextField(
-                  controller: _cpwcontroller,
-                  label: Text(
-                    "Confirm Password",
-                    style: GoogleFonts.poppins(),
-                  ),
-                  icn: Icon(Icons.check_box_outlined),
-                  obscuretext: true),
-              SizedBox(
-                height: 10,
-              ),
               RoundedLoadingButton(
                 width: 2000,
                 borderRadius: 10,
                 controller: LoginbtnController,
                 color: (Colors.grey.shade600),
-                onPressed: () {
-                  final _authService = AuthService();
-                  if (_pwcontroller.text == _cpwcontroller.text) {
-                    try {
-                      _authService.SignUpWithEmailPassword(
-                          _emailcontroller.text, _pwcontroller.text);
+                onPressed: () async {
+                  final authService = AuthService();
 
-                      _authService.SignInWithEmailPassword(
-                          _emailcontroller.text, _pwcontroller.text);
-
-                      LoginbtnController.success();
-                    } catch (e) {
-                      showDialog(
-                        context: context,
-                        builder: (context) =>
-                            AlertDialog(title: Text(e.toString())),
-                      );
-
-                      LoginbtnController.reset();
-                    }
-                  } else {
+                  try {
+                    await authService.SignInWithEmailPassword(
+                            _emailcontroller.text, _pwcontroller.text)
+                        .then(
+                      (value) {
+                        Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Dashboard(),
+                            ));
+                      },
+                    );
+                  } catch (e) {
                     showDialog(
                       context: context,
                       builder: (context) =>
-                          AlertDialog(title: Text("Password dont match")),
+                          AlertDialog(title: Text(e.toString())),
                     );
                     LoginbtnController.reset();
                   }
+
+                  // Timer(Duration(seconds: 3), () {
+                  //   LoginbtnController.success();
+                  //   Navigator.pushReplacement(
+                  //       context,
+                  //       PageTransition(
+                  //           type: PageTransitionType.fade, child: Login()));
+                  // });
                 },
                 child: Text(
-                  "Sign Up",
+                  "Login",
                   style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 15,
@@ -127,19 +120,19 @@ class Register extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Already a member? ",
+                    "Not a member? ",
                     style: GoogleFonts.poppins(),
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushReplacement(
+                      Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => Login(),
+                            builder: (context) => Register(),
                           ));
                     },
                     child: Text(
-                      "Log In",
+                      "Sign Up",
                       style: GoogleFonts.poppins(
                           fontWeight: FontWeight.bold,
                           color: Colors.grey.shade700),

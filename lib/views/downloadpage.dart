@@ -10,6 +10,11 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
+import 'package:xupstore/provider/DownloadPP/download_button_provider.dart';
+import 'package:xupstore/services/firestore_downloadpage_services.dart';
+
+import '../provider/DownloadPP/game_rating_provider.dart';
 
 class DownloadPage extends StatefulWidget {
   DownloadPage({super.key, required this.game});
@@ -21,11 +26,16 @@ class DownloadPage extends StatefulWidget {
 }
 
 class _DownloadPageState extends State<DownloadPage> {
+  FirestoreDownloadpageServices firestoreDownloadpageServices =
+      FirestoreDownloadpageServices();
   bool isFavorite = false;
   bool isDownloading = false;
   double downloadProgress = 0.0;
+  double rated = 0.0;
+  TextEditingController _reviewcontroller = TextEditingController();
 
-  Future<void> downloadAndInstallAPK() async {
+  Future<void> downloadAndInstallAPK(
+      BuildContext context, DownloadProvider downloadProvider) async {
     // Request storage permission
     PermissionStatus storageStatus = await Permission.storage.request();
 
@@ -33,10 +43,8 @@ class _DownloadPageState extends State<DownloadPage> {
       final directory = await getTemporaryDirectory();
       final filePath = '${directory.path}/${widget.game['title']}.apk';
 
-      setState(() {
-        isDownloading = true;
-        downloadProgress = 0.0;
-      });
+      // Start downloading
+      downloadProvider.startDownloading();
 
       try {
         await Dio().download(
@@ -44,22 +52,18 @@ class _DownloadPageState extends State<DownloadPage> {
           filePath,
           onReceiveProgress: (received, total) {
             if (total != -1) {
-              setState(() {
-                downloadProgress = (received / total);
-              });
+              double progress = received / total;
+              downloadProvider.updateProgress(progress);
             }
           },
         );
 
-        setState(() {
-          isDownloading = false;
-        });
+        downloadProvider.finishDownloading();
 
         // Check if Install from Unknown Sources is enabled
         bool canInstallUnknownSources =
             await Permission.requestInstallPackages.isGranted;
         if (!canInstallUnknownSources) {
-          // Show a snackbar to prompt the user to enable Unknown Sources
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -71,21 +75,16 @@ class _DownloadPageState extends State<DownloadPage> {
             ),
           );
         } else {
-          // Open the APK file for installation
           OpenFile.open(filePath);
         }
       } catch (e) {
-        setState(() {
-          isDownloading = false;
-        });
+        downloadProvider.finishDownloading();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to download the APK. Please try again.'),
-          ),
+              content: Text('Failed to download the APK. Please try again.')),
         );
       }
     } else if (storageStatus.isPermanentlyDenied) {
-      // If storage permission is permanently denied, open app settings
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -94,17 +93,15 @@ class _DownloadPageState extends State<DownloadPage> {
       );
       openAppSettings();
     } else {
-      // Storage permission is denied temporarily
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Storage permission is required to download the APK.'),
-        ),
+            content:
+                Text('Storage permission is required to download the APK.')),
       );
     }
   }
 
-  // Method to open settings for "Install from Unknown Sources"
-  Future<void> openUnknownSourcesSettings() async {
+   Future<void> openUnknownSourcesSettings() async {
     if (Platform.isAndroid) {
       final intent = AndroidIntent(
         action: 'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
@@ -113,6 +110,14 @@ class _DownloadPageState extends State<DownloadPage> {
       );
       await intent.launch();
     }
+  }
+
+
+  @override
+  void initState() {
+    super.initState();
+    final ratingProvider = Provider.of<RatingProvider>(context, listen: false);
+    ratingProvider.fetchRatingAndReviewCount(widget.game['gameid']);
   }
 
   @override
@@ -218,48 +223,130 @@ class _DownloadPageState extends State<DownloadPage> {
                   textAlign: TextAlign.start,
                 ),
                 SizedBox(height: 15),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.star,
-                      color: Color(0xffe0d910),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      "4.6",
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    Spacer(),
-                    Text(
-                      "23 reviews",
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
+                Consumer<RatingProvider>(
+                  builder: (context, ratingProvider, child) {
+                    if (ratingProvider.isLoading) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+
+                    return Row(
+                      children: [
+                        Icon(
+                          Icons.star,
+                          color: Color(0xffe0d910),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          ratingProvider.averageRating.toStringAsFixed(1),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        Spacer(),
+                        Text(
+                          "${ratingProvider.reviewCount} reviews",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 15),
-                RatingBar.builder(
-                  itemSize: 30,
-                  initialRating: 3,
-                  minRating: 1,
-                  direction: Axis.horizontal,
-                  allowHalfRating: true,
-                  itemCount: 5,
-                  itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
-                  itemBuilder: (context, _) => Icon(
-                    Icons.star,
-                    color: Color(0xffe0d910),
-                  ),
-                  onRatingUpdate: (rating) {
-                    print(rating);
+                Consumer<RatingProvider>(
+                  builder: (context, ratingProvider, child) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        RatingBar.builder(
+                          itemSize: 30,
+                          initialRating: ratingProvider.rated,
+                          minRating: 1,
+                          direction: Axis.horizontal,
+                          allowHalfRating: true,
+                          itemCount: 5,
+                          itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
+                          itemBuilder: (context, _) => Icon(
+                            Icons.star,
+                            color: Color(0xffe0d910),
+                          ),
+                          onRatingUpdate: (rating) {
+                            // Update rating using the provider, no need for setState
+                            ratingProvider.updateRating(rating);
+                          },
+                        ),
+                      ],
+                    );
                   },
+                ),
+                SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Post a Review",
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade900,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8),
+                TextField(
+                  controller: _reviewcontroller,
+                  decoration: InputDecoration(
+                    hintText: 'Write your review here...',
+                    hintStyle: GoogleFonts.poppins(),
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(20), // Rounded corners
+                      borderSide: BorderSide.none, // Remove the visible border
+                    ),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    filled: true,
+                    fillColor: Colors.grey[200], // Light background color
+                  ),
+                  maxLines: null,
+                  style: TextStyle(
+                      fontSize:
+                          16), // Optional: adjust font size for readability
+                ),
+                SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Consumer<RatingProvider>(
+                    builder: (context, ratingProvider, child) {
+                      return ElevatedButton(
+                        onPressed: () async {
+                          await ratingProvider.addReview(
+                            gameId: widget.game['gameid'],
+                            rating: ratingProvider.rated,
+                            reviewText: _reviewcontroller.text.trim(),
+                          );
+                          _reviewcontroller.clear();
+
+                          ratingProvider
+                              .fetchRatingAndReviewCount(widget.game['gameid']);
+                        },
+                        child: Text(
+                          'Submit',
+                          style: GoogleFonts.poppins(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF6d72ea),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 15),
                 Align(
@@ -274,80 +361,105 @@ class _DownloadPageState extends State<DownloadPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                ListView.builder(
-                  itemCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      margin: EdgeInsets.symmetric(vertical: 10),
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.2),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: Offset(0, 3),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: firestoreDownloadpageServices
+                      .getReviewsStream(widget.game['gameid']),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text("Error: ${snapshot.error}"));
+                    }
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(child: Text("No reviews yet."));
+                    }
+
+                    final reviews = snapshot.data!;
+
+                    return ListView.builder(
+                      itemCount: reviews.length,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final review = reviews[index];
+                        final username = review['username'] ?? 'Anonymous';
+                        final rating = review['rating'] ?? 0.0;
+                        final reviewText = review['reviewText'] ?? '';
+
+                        return Container(
+                          margin: EdgeInsets.symmetric(vertical: 10),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.2),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.grey.shade300,
-                            child: Icon(
-                              Icons.person,
-                              color: Colors.white,
-                            ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.grey.shade300,
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      username,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(height: 5),
+                                    RatingBar.builder(
+                                      itemSize: 20,
+                                      initialRating: rating.toDouble(),
+                                      minRating: 1,
+                                      direction: Axis.horizontal,
+                                      allowHalfRating: true,
+                                      itemCount: 5,
+                                      itemPadding:
+                                          EdgeInsets.symmetric(horizontal: 2.0),
+                                      itemBuilder: (context, _) => Icon(
+                                        Icons.star,
+                                        color: Color(0xffe0d910),
+                                      ),
+                                      onRatingUpdate: (rating) {
+                                        // Do nothing, as this is just for display
+                                      },
+                                      ignoreGestures:
+                                          true, // Makes the RatingBar non-interactive
+                                    ),
+                                    SizedBox(height: 5),
+                                    Text(
+                                      reviewText,
+                                      style: GoogleFonts.nunito(
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Rameez',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 5),
-                                RatingBar.builder(
-                                  itemSize: 20,
-                                  initialRating: 4,
-                                  minRating: 1,
-                                  direction: Axis.horizontal,
-                                  allowHalfRating: true,
-                                  itemCount: 5,
-                                  itemPadding:
-                                      EdgeInsets.symmetric(horizontal: 2.0),
-                                  itemBuilder: (context, _) => Icon(
-                                    Icons.star,
-                                    color: Color(0xffe0d910),
-                                  ),
-                                  onRatingUpdate: (rating) {
-                                    print(rating);
-                                  },
-                                ),
-                                SizedBox(height: 5),
-                                Text(
-                                  "Nice game, really enjoyed playing it!",
-                                  style: GoogleFonts.nunito(
-                                    fontSize: 14,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -359,52 +471,58 @@ class _DownloadPageState extends State<DownloadPage> {
             bottom: 20,
             left: 20,
             right: 20,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF6d72ea),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              ),
-              onPressed: isDownloading
-                  ? null
-                  : () async {
-                      await downloadAndInstallAPK();
-                    },
-              child: isDownloading
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            value: downloadProgress,
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Downloading... ${(downloadProgress * 100).toStringAsFixed(0)}%',
+            child: Consumer<DownloadProvider>(
+              builder: (context, downloadProvider, child) {
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF6d72ea),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  ),
+                  onPressed: downloadProvider.isDownloading
+                      ? null
+                      : () async {
+                          // Start downloading and installation logic
+                          await downloadAndInstallAPK(
+                              context, downloadProvider);
+                        },
+                  child: downloadProvider.isDownloading
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                value: downloadProvider.downloadProgress,
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Downloading... ${(downloadProvider.downloadProgress * 100).toStringAsFixed(0)}%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Download and Install',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
-                      ],
-                    )
-                  : Text(
-                      'Download and Install',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                );
+              },
             ),
           )
         ],

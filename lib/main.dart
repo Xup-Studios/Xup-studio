@@ -1,13 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:xupstore/firebase_options.dart';
+import 'package:xupstore/views/Auth/auth_gate.dart';
 import 'package:xupstore/views/Developer/dev_payment.dart';
 import 'package:xupstore/views/Developer/dev_profile.dart';
 import 'package:xupstore/views/Developer/payment_method.dart';
 import 'package:xupstore/views/dashboard.dart';
 import 'package:xupstore/views/downloadpage.dart';
-import 'package:xupstore/views/homepage.dart';
-import 'package:xupstore/views/login.dart';
+import 'package:xupstore/views/Auth/login.dart';
+
+import 'provider/DownloadPP/download_button_provider.dart';
+import 'provider/DownloadPP/game_rating_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,9 +25,17 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: PaymentAccessScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => RatingProvider()),
+        ChangeNotifierProvider(
+          create: (context) => DownloadProvider(),
+        )
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: AuthGate(),
+      ),
     );
   }
 }

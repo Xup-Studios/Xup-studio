@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreDashboardServices {
   Stream<List<Map<String, dynamic>>> getAllGamesStream() {
